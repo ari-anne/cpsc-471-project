@@ -1,63 +1,117 @@
-import socket, os, sys
+import os, sys
+import constants as const
+from data_handling import send_data, receive_data, size_padding
+from socket_functions import connect
 
-COMMANDS = ["get", "put", "ls", "quit"]
-HEADER = 20
-BUFFER = 2048
 
-# To run: python3 cli.py <SERVER> <PORT>
-if (len(sys.argv) != 3):
-    print("Usage: python3 " + sys.argv[0] + " <SERVER> <PORT>")
-    sys.exit()
+def put_file(sock, address, fileName):
+    # grab files only from client folder
+    filePath = const.CLIENT_FOLDER + fileName
 
-server = sys.argv[1]
-port = sys.argv[2]
+    # open file and get file size
+    try:
+        userFile = open(filePath, "r")
+        fileSize = os.path.getsize(filePath)
+    except Exception as e:
+        print(e)
+        # print("Failed to open file")
+        return
 
-try:
-    cliSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    cliSocket.connect((server, int(port)))
-    print("Connected to " + server + " on port " + port)
-except Exception as e:
-    print(e)
-    sys.exit()
+    # get data channel port number from server
+    dataPort = receive_data(sock, const.HEADER_SIZE)
 
-query = ""
+    # connect to new port
+    dataSocket = connect(address, int(dataPort))
 
-while True:
-    query = (input("ftp> ")).lower().split()
-    print(query)
-
-    # get <FILE NAME>
-    # downloads <FILE NAME> from the server
-    if (query[0] == COMMANDS[0]):
-        if (len(query) != 2):
-            print("Usage: get <FILE NAME>")
-        else:
-            req = query[0] + "||" + query[1]
-            cliSocket.send(req.encode("ascii"))
-        
-    # put <FILE NAME>
-    # uploads <FILE NAME> to the server
-    elif (query[0] == COMMANDS[1]):
-        if (len(query) != 2):
-            print("Usage: put <FILE NAME>")
-        else:
-            file = open("./cliFiles/" + query[1], "r")
-            req = query[0] + "||" + query[1]
-            # bytes = file.read(BUFFER)
-            cliSocket.send(req.encode("ascii"))
-        
-    # ls
-    # lists files on the server
-    elif (query[0] == COMMANDS[2]):
-        cliSocket.send(query[0].encode("ascii"))
-        response = cliSocket.recv(BUFFER)
-        print(response)
+    # if connection failed, exit
+    if not dataSocket:
+        print("Failed to connect to server")
+        return
     
-    # quit
-    # disconnects from the server and exits
-    elif (query[0] == COMMANDS[3]):
-        cliSocket.send(query[0].encode("ascii"))
-        break
+    # make file size and file name headers
+    fileNameSize = size_padding(len(fileName), const.HEADER_SIZE)
+    fileDataSize = size_padding(fileSize, const.HEADER_SIZE)
+    fileData = userFile.read()
     
-    else:
-        print("Invalid command")
+    # add headers to payload
+    data = fileNameSize + fileDataSize + fileName + fileData
+
+    # send data
+    send_data(dataSocket, data)
+    print(fileName + " upload successful.")
+    print("Bytes sent: " + str(len(data)))
+
+    # close file and connection
+    userFile.close()
+    dataSocket.close()
+    print("Data transfer connection closed")
+
+
+def run(args):
+    # To run: python3 cli.py <SERVER> <PORT>
+    if len(args) != 3:
+        print("Usage: python3 " + args[0] + " <SERVER> <PORT>")
+        sys.exit()
+
+    server = args[1]
+    port = args[2]
+
+    # connect to server
+    cliSocket = connect(server, int(port))
+    if not cliSocket:
+        print("Failed to connect to " + server)
+        sys.exit()
+
+    query = ""
+
+    while True:
+        query = (input("ftp> ")).lower().split()
+        # print(query)
+
+        # get <FILE NAME>
+        # downloads <FILE NAME> from the server
+        if query[0] == const.COMMANDS[0]:
+            if len(query) != 2:
+                print("Usage: get <FILE NAME>")
+            else:
+                send_data(cliSocket, query[0])
+                print("get not implemented yet")
+            
+        # put <FILE NAME>
+        # uploads <FILE NAME> to the server
+        elif query[0] == const.COMMANDS[1]:
+            if len(query) != 2:
+                print("Usage: put <FILE NAME>")
+            else:
+                send_data(cliSocket, query[0])
+                put_file(cliSocket, server, query[1])
+            
+        # ls
+        # lists files on the server
+        elif query[0] == const.COMMANDS[2]:
+            # send query
+            send_data(cliSocket, query[0])
+
+            # get size of response
+            responseSize = receive_data(cliSocket, const.HEADER_SIZE)
+
+            if responseSize == "":
+                print("Failed to receive size of response")
+            else:
+                response = receive_data(cliSocket, int(responseSize))
+                print(response)
+
+        # quit
+        # disconnects from the server and exits
+        elif query[0] == const.COMMANDS[3]:
+            send_data(cliSocket, query[0])
+            cliSocket.close()
+            print("Connection closed")
+            break
+        
+        else:
+            print("Invalid command")
+
+
+if __name__ == '__main__':
+    run(sys.argv)

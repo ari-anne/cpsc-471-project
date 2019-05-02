@@ -1,5 +1,6 @@
 Arianne Arcebal: hharin@csu.fullerton.edu
 
+
 Language: Python
 
 
@@ -20,3 +21,5 @@ Execution:
 
 
 Additional Notes:
+	* client files are read from cliFiles
+	* server files are read from servFiles
