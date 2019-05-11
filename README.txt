@@ -1,4 +1,5 @@
 Arianne Arcebal: hharin@csu.fullerton.edu
+Vincent Tran: tranvc1@csu.fullerton.edu
 
 
 Language: Python

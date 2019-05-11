@@ -1,6 +1,6 @@
 import os, sys
 import constants as const
-from data_handling import send_data, receive_data, size_padding
+from data_handling import send_data, receive_data, size_padding, getFromServer
 from socket_functions import connect
 
 
@@ -75,7 +75,7 @@ def run(args):
                 print("Usage: get <FILE NAME>")
             else:
                 send_data(cliSocket, query[0])
-                print("get not implemented yet")
+                getFromServer(cliSocket, query[1])
             
         # put <FILE NAME>
         # uploads <FILE NAME> to the server

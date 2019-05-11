@@ -1,6 +1,6 @@
 import os, sys
 import constants as const
-from data_handling import send_data, receive_data, size_padding
+from data_handling import send_data, receive_data, size_padding, giveFromServer
 from socket_functions import bind
 
 
@@ -75,7 +75,7 @@ def run(args):
             # get <FILE NAME>
             # sends <FILE NAME> to client
             if query == const.COMMANDS[0]:
-                print("get not implemented yet")
+                giveFromServer(cliSocket)
 
             # put <FILE NAME>
             # downloads <FILE NAME> from client
